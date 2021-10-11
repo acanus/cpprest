@@ -339,7 +339,7 @@ public:
 		std::cout << "exception occurred in SampleController: " << request.relative_uri().to_string() << std::endl;
 		std::cout << ("exception: ") << ex.what() << std::endl;
 	}
-    void handle_get_stream(http_request request)
+    void handle_get_image_stream(http_request request)
     {
         TRACE(L"\nhandle GET\n");
         streams::producer_consumer_buffer<uint8_t> rwbuf;
@@ -351,9 +351,6 @@ public:
         response.headers().add(header_names::connection, _XPLATSTR("keep-alive"));
         auto rep = request.reply(response);
         std::thread t1([](streams::producer_consumer_buffer<uint8_t>  rwbuf) {
-            
-                
-            
                 auto vid=cv::VideoCapture(0);
                 
                     if (vid.isOpened())
@@ -398,10 +395,35 @@ public:
 		response[U("value")] = json::value::string(U("json response from method 1"));
 		request.reply(status_codes::OK, response);
 	}
+    
+	void handle_get_sse(const web::http::http_request & request) {
+		TRACE(L"\nhandle GET\n");
+        streams::producer_consumer_buffer<char> rwbuf;
+        streams::basic_istream<uint8_t> stream(rwbuf);
+        http_response response(status_codes::OK);
+        response.set_body(stream);
+        response.headers().add(header_names::access_control_allow_origin, _XPLATSTR("*"));
+        response.headers().add(header_names::content_type, _XPLATSTR("text/event-stream"));
+        auto rep = request.reply(response);
+        std::thread t1([](streams::producer_consumer_buffer<char>  rwbuf) {
 
-	void Method2(const web::http::http_request & request) {
-		using namespace web::http;
-		request.reply(status_codes::OK, U("string response from method 2"));
+
+            rwbuf.putn_nocopy("data: aaa \n\n", 12).wait();
+            rwbuf.sync().wait();
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            rwbuf.putn_nocopy("data: aaa \n\n", 12).wait();
+            rwbuf.sync().wait();
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            rwbuf.putn_nocopy("data: aaa \n\n", 12).wait();
+            rwbuf.sync().wait();
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            //rwbuf.close();
+
+        }, rwbuf);
+
+
+        t1.join();
+        rep.wait();
 	}
 
 	void FaultyMethod(const web::http::http_request & request) {
@@ -417,19 +439,19 @@ public:
 		using namespace cppresthelper;
 
 		_routingEntries.push_back(RoutingEntry{
-			U("/camera"),
+			U("/image_stream"),
 			web::http::methods::GET,
-			CPPRESTHELPER_HANDLER(CameraController, handle_get_stream)
+			CPPRESTHELPER_HANDLER(CameraController, handle_get_image_stream)
 			});
 
 		_routingEntries.push_back(RoutingEntry{
-			U("/sample/method2"),
+			U("/sse"),
 			web::http::methods::GET,
-			CPPRESTHELPER_HANDLER(CameraController, Method2)
+			CPPRESTHELPER_HANDLER(CameraController, handle_get_sse)
 			});
 
 		_routingEntries.push_back(RoutingEntry{
-			U("/sample/faulty-method"),
+			U("/faulty-method"),
 			web::http::methods::GET,
 			CPPRESTHELPER_HANDLER(CameraController, FaultyMethod)
 			});
