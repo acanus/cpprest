@@ -11,6 +11,7 @@
 #include <thread>
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest_helper.hpp"
+#include "cvextern/matching.hpp"
 using namespace std::chrono;
 using namespace concurrency;
 using namespace cv;
@@ -28,7 +29,7 @@ using namespace web::http::experimental::listener;
 #include <set>
 #include <string>
 using namespace std;
-
+using namespace cvextern;
 
 #define TRACE(msg)            wcout << msg
 #define TRACE_ACTION(a, k, v) wcout << a << L" (" << k << L", " << v << L")\n"
@@ -427,7 +428,16 @@ public:
 	}
 
 	void FaultyMethod(const web::http::http_request & request) {
-		throw std::runtime_error("some error occurred!");
+		using namespace web;
+		using namespace web::http;
+        Mat image = imread("/home/acanus/github/images/dip_switch_01.png");
+	    Mat template_img = imread("/home/acanus/github/images/template.png");
+        TemplateMatching match = TemplateMatching();
+        match.CreateModel(4,template_img);
+        match.FindTemplate(image);
+		auto response = json::value::object();
+		response[U("value")] = json::value::string(U("json response from method 1"));
+		request.reply(status_codes::OK, response);
 	}
 };
 
@@ -461,7 +471,7 @@ int main()
 {
     SampleServer server;
 
-	server.Start(U("http://192.168.1.120:8000/api")).then([&server]() {
+	server.Start(U("http://0.0.0.0:8000/api")).then([&server]() {
 		std::cout << "server started listening..." << server.GetEndpoint() << std::endl;
 
 		std::cout << "available urls:"<< std::endl;
@@ -471,9 +481,11 @@ int main()
 
 		std::wcout << "press any key to stop server..."<< std::endl;
 	});
-
-	std::cin.get();
-
+    while(true){
+        std::cin.get();
+    }
+	
+    
 	server.Stop().wait();
 	std::wcout << "server stopped..." << std::endl;
 
