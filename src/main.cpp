@@ -12,6 +12,7 @@
 #include <cpprest/producerconsumerstream.h>
 #include "cpprest_helper.hpp"
 #include "cvextern/matching.hpp"
+#include "deeplearning/segnet.hpp"
 using namespace std::chrono;
 using namespace concurrency;
 using namespace cv;
@@ -28,6 +29,7 @@ using namespace web::http::experimental::listener;
 #include <map>
 #include <set>
 #include <string>
+#include "deeplearning/sampleONNX.hpp"
 using namespace std;
 using namespace cvextern;
 
@@ -430,11 +432,21 @@ public:
 	void FaultyMethod(const web::http::http_request & request) {
 		using namespace web;
 		using namespace web::http;
+        auto http_get_vars = uri::split_query(request.request_uri().query());
+
+		auto found_name = http_get_vars.find(U("level"));
+        int level = std::stoi(found_name->second);
+        auto found_name_2 = http_get_vars.find(U("threshold"));
+        float threshold = std::stof(found_name_2->second);
         Mat image = imread("/home/acanus/github/images/dip_switch_01.png");
 	    Mat template_img = imread("/home/acanus/github/images/template.png");
         TemplateMatching match = TemplateMatching();
-        match.CreateModel(4,template_img);
-        match.FindTemplate(image);
+        match.CreateModel(level,template_img);
+        auto start = high_resolution_clock::now();       
+        match.FindTemplate(image,threshold);
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<milliseconds>(stop - start);
+        cout << "Fast template:" << duration.count() << "ms" << endl;
 		auto response = json::value::object();
 		response[U("value")] = json::value::string(U("json response from method 1"));
 		request.reply(status_codes::OK, response);
@@ -481,11 +493,14 @@ int main()
 
 		std::wcout << "press any key to stop server..."<< std::endl;
 	});
+    // cv::Mat frame = cv::imread("/home/acanus/github/images/turkish_coffee.jpg",cv::IMREAD_COLOR);
+    // cv::imshow("test",frame);
+    // cv::waitKey(-1);
+    sampleonnx::test(); 
     while(true){
         std::cin.get();
     }
-	
-    
+	   
 	server.Stop().wait();
 	std::wcout << "server stopped..." << std::endl;
 

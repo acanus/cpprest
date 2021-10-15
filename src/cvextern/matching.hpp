@@ -71,7 +71,7 @@ namespace cvextern{
                 pyrDown(templates[i - 1], templates[i]);
             }
         }
-        void FindTemplate(Mat image){
+        void FindTemplate(Mat image,float threshold){
             Mat images[level];
             images[0] = image;
             for (int i = 1; i <level; i++)
@@ -89,7 +89,7 @@ namespace cvextern{
                 
                 if (i!=(level-1)) {
                     auto start_inner = high_resolution_clock::now();
-                    for(int j=0; j>(int)ROI.size(); j++)
+                    for(int j=0; j<(int)ROI.size(); j++)
                     {
                         auto imageroi = ROI[j] + templates[i].size();
                         auto templateroi = ROI[j] + cv::Size(1, 1);
@@ -119,7 +119,7 @@ namespace cvextern{
                     cout << "Fast template pyramid " << i << ": " << stop_inner.count() << "ms" << endl;
                     
                 }
-                result = result > 0.99;
+                result = result > threshold;
                 ROI = findROIContours(result);
                 
                 
